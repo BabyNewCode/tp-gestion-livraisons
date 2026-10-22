@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE / outils
+.vscode/
+.idea/
+.claude/
+
+# Sujet du TP (pas besoin de le pousser)
+Sujet.pdf
