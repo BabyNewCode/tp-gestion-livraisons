@@ -15,6 +15,7 @@ pour pouvoir y brancher la priorité ensuite sans réécrire les algos.
 
 from dataclasses import dataclass, field
 
+from .colis import PRIORITE_MIN, PRIORITE_MAX
 from .tri import tri_fusion
 
 
@@ -22,11 +23,37 @@ def gain_valeur(colis):
     return colis.valeur
 
 
+def gain_priorite(alpha=1.0):
+    """Règle choisie pour intégrer la priorité :
+
+        score = valeur * (1 + alpha * (priorite - 1) / 4)
+
+    - priorité 1 -> le colis vaut sa valeur normale
+    - priorité 5 -> le colis vaut valeur * (1 + alpha)
+    - alpha règle l'importance donnée à l'urgence : alpha = 0 on ignore la priorité,
+      alpha = 1 un colis très urgent "compte double", alpha = 3 il compte quadruple...
+
+    Pourquoi multiplier la valeur plutôt qu'additionner un bonus fixe : un bonus fixe
+    favoriserait des petits colis sans valeur juste parce qu'ils sont urgents. Là, l'urgence
+    amplifie la valeur sans l'écraser. Le poids, lui, reste une contrainte dure (capacité)
+    et c'est la PD qui fait l'arbitrage poids / score, donc on ne le met pas dans le score.
+    """
+    if alpha < 0:
+        raise ValueError("alpha doit être >= 0")
+    etendue = PRIORITE_MAX - PRIORITE_MIN
+
+    def gain(colis):
+        return colis.valeur * (1 + alpha * (colis.priorite - PRIORITE_MIN) / etendue)
+
+    return gain
+
+
 @dataclass
 class Chargement:
     methode: str
     capacite: int
     colis: list = field(default_factory=list)
+    gain: object = gain_valeur  # fonction de score utilisée pour l'optimisation
 
     @property
     def poids_total(self):
@@ -36,9 +63,13 @@ class Chargement:
     def valeur_totale(self):
         return sum(c.valeur for c in self.colis)
 
+    @property
+    def score_total(self):
+        return sum(self.gain(c) for c in self.colis)
 
-def _total_gain(colis, gain):
-    return sum(gain(c) for c in colis)
+    @property
+    def priorite_moyenne(self):
+        return sum(c.priorite for c in self.colis) / len(self.colis) if self.colis else 0
 
 
 def sac_a_dos_dp(colis, capacite, gain=gain_valeur):
@@ -58,7 +89,7 @@ def sac_a_dos_dp(colis, capacite, gain=gain_valeur):
              (bytearray = 1 octet par case, bien plus léger qu'une liste de listes d'int).
     """
     if capacite <= 0:
-        return Chargement("programmation dynamique", capacite)
+        return Chargement("programmation dynamique", capacite, gain=gain)
 
     # un colis plus lourd que le camion ne pourra jamais être pris : on l'écarte direct
     candidats = [c for c in colis if c.poids <= capacite]
@@ -83,7 +114,7 @@ def sac_a_dos_dp(colis, capacite, gain=gain_valeur):
             choisis.append(candidats[i])
             w -= candidats[i].poids
     choisis.reverse()
-    return Chargement("programmation dynamique", capacite, choisis)
+    return Chargement("programmation dynamique", capacite, choisis, gain)
 
 
 def sac_a_dos_glouton(colis, capacite, gain=gain_valeur):
@@ -97,7 +128,7 @@ def sac_a_dos_glouton(colis, capacite, gain=gain_valeur):
         if c.poids <= restant:
             choisis.append(c)
             restant -= c.poids
-    return Chargement("glouton (ratio)", capacite, choisis)
+    return Chargement("glouton (ratio)", capacite, choisis, gain)
 
 
 def sac_a_dos_force_brute(colis, capacite, gain=gain_valeur, n_max=20):
@@ -116,4 +147,4 @@ def sac_a_dos_force_brute(colis, capacite, gain=gain_valeur, n_max=20):
         if poids <= capacite and g > meilleur_gain:
             meilleur_gain, meilleur_masque = g, masque
     choisis = [colis[i] for i in range(n) if meilleur_masque >> i & 1]
-    return Chargement("force brute", capacite, choisis)
+    return Chargement("force brute", capacite, choisis, gain)

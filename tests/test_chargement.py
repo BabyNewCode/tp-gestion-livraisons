@@ -1,7 +1,8 @@
 import unittest
 
 from src.colis import Colis
-from src.chargement import sac_a_dos_dp, sac_a_dos_glouton, sac_a_dos_force_brute
+from src.chargement import (sac_a_dos_dp, sac_a_dos_glouton, sac_a_dos_force_brute,
+                            gain_priorite, gain_valeur)
 from src.generateur import generer_colis
 
 # exemple du sujet (A, B, C, D -> ids 1, 2, 3, 4)
@@ -47,6 +48,41 @@ class TestSacADos(unittest.TestCase):
             gl = sac_a_dos_glouton(colis, 100)
             self.assertLessEqual(gl.valeur_totale, dp.valeur_totale)
             self.assertLessEqual(gl.poids_total, 100)
+
+
+class TestPriorite(unittest.TestCase):
+    def test_formule(self):
+        g = gain_priorite(alpha=1)
+        self.assertEqual(g(B), 25)          # priorité 1 -> valeur inchangée
+        self.assertEqual(g(A), 40)          # priorité 5 -> x2
+        self.assertAlmostEqual(g(C), 31.5)  # priorité 4 -> x1.75
+
+    def test_alpha_zero_comme_valeur(self):
+        g = gain_priorite(alpha=0)
+        for seed in range(10):
+            colis = generer_colis(40, seed=seed)
+            self.assertEqual(sac_a_dos_dp(colis, 120, g).valeur_totale,
+                             sac_a_dos_dp(colis, 120, gain_valeur).valeur_totale)
+
+    def test_exemple_sujet_capacite_13(self):
+        # sans priorité : B + C (valeur 43) ; avec priorité : A + C (A est très urgent)
+        sans = sac_a_dos_dp(EXEMPLE, 13)
+        avec = sac_a_dos_dp(EXEMPLE, 13, gain_priorite(alpha=1))
+        self.assertEqual({c.id for c in sans.colis}, {2, 3})
+        self.assertEqual({c.id for c in avec.colis}, {1, 3})
+        self.assertAlmostEqual(avec.score_total, 71.5)
+        self.assertGreater(avec.priorite_moyenne, sans.priorite_moyenne)
+
+    def test_dp_optimale_avec_priorite(self):
+        g = gain_priorite(alpha=2)
+        for seed in range(15):
+            colis = generer_colis(12, seed=seed, poids_max=20)
+            self.assertAlmostEqual(sac_a_dos_dp(colis, 40, g).score_total,
+                                   sac_a_dos_force_brute(colis, 40, g).score_total)
+
+    def test_alpha_negatif_refuse(self):
+        with self.assertRaises(ValueError):
+            gain_priorite(-1)
 
 
 if __name__ == "__main__":
