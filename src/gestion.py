@@ -10,6 +10,15 @@ afficher les colis dans l'ordre où ils ont été ajoutés sans liste en plus.
 """
 
 from .colis import Colis
+from .tri import tri_fusion
+
+# critère -> (fonction clé, ordre par défaut décroissant ?)
+# poids : du plus léger au plus lourd ; valeur et priorité : les plus intéressants d'abord
+CRITERES = {
+    "poids": (lambda c: c.poids, False),
+    "valeur": (lambda c: c.valeur, True),
+    "priorite": (lambda c: c.priorite, True),
+}
 
 
 class GestionColis:
@@ -40,6 +49,17 @@ class GestionColis:
     def lister(self):
         """Tous les colis, dans l'ordre d'ajout. O(n) (copie dans une liste)."""
         return list(self._colis.values())
+
+    def trier_par(self, critere, decroissant=None):
+        """Colis triés selon 'poids', 'valeur' ou 'priorite' avec le tri fusion maison.
+        O(n log n) en temps, O(n) en espace. On re-trie à chaque appel (voir benchmark
+        pour la discussion sur un éventuel cache)."""
+        if critere not in CRITERES:
+            raise ValueError(f"critère inconnu : {critere} (attendu : {', '.join(CRITERES)})")
+        cle, ordre_defaut = CRITERES[critere]
+        if decroissant is None:
+            decroissant = ordre_defaut
+        return tri_fusion(self._colis.values(), cle=cle, decroissant=decroissant)
 
     def __len__(self):
         return len(self._colis)
