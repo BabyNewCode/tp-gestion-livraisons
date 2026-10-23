@@ -169,7 +169,7 @@ class Application:
         print(f"Valeur totale : {valeur} (moyenne {valeur / n:.1f})")
 
         # comptages en un seul passage, O(n)
-        par_priorite = {p: 0 for p in range(PRIORITE_MAX, PRIORITE_MIN - 1, -1)}
+        par_priorite = dict.fromkeys(range(PRIORITE_MAX, PRIORITE_MIN - 1, -1), 0)
         par_destination = {}
         for c in colis:
             par_priorite[c.priorite] += 1
@@ -183,7 +183,8 @@ class Application:
             ch = self.chargement
             print(f"\nDernier chargement ({ch.methode}) :")
             print(f"  {len(ch.colis)}/{n} colis chargés, remplissage {100 * ch.poids_total / ch.capacite:.1f} %")
-            print(f"  valeur chargée {ch.valeur_totale} ({100 * ch.valeur_totale / valeur:.1f} % de la valeur totale)")
+            part = f" ({100 * ch.valeur_totale / valeur:.1f} % de la valeur totale)" if valeur else ""
+            print(f"  valeur chargée {ch.valeur_totale}{part}")
             print(f"  priorité moyenne chargée {ch.priorite_moyenne:.2f} "
                   f"(contre {sum(c.priorite for c in colis) / n:.2f} sur tous les colis)")
 
